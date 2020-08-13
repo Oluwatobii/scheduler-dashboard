@@ -5,6 +5,8 @@ import axios from "axios";
 
 import classnames from "classnames";
 
+import { setInterview } from "helpers/reducers";
+
 import {
   getTotalInterviews,
   getLeastPopularTimeSlot,
@@ -60,8 +62,6 @@ class Dashboard extends Component {
       this.setState({ focused });
     }
 
-    console.log("BEFORE RENDER", this.state);
-
     Promise.all([
       axios.get("/api/days"),
       axios.get("/api/appointments"),
@@ -74,12 +74,28 @@ class Dashboard extends Component {
         interviewers: interviewers.data,
       });
     });
+    //this.socket = new WebSocket(process.env.REACT_APP_WEBSOCKET_URL);
+    this.socket = new WebSocket("ws://localhost:8001");
+
+    this.socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (typeof data === "object" && data.type === "SET_INTERVIEW") {
+        this.setState((previousState) =>
+          setInterview(previousState, data.id, data.interview)
+        );
+      }
+    };
   }
 
   componentDidUpdate(previousProps, previousState) {
     if (previousState.focused !== this.state.focused) {
       localStorage.setItem("focused", JSON.stringify(this.state.focused));
     }
+  }
+
+  componentWillUnmount() {
+    this.socket.close();
   }
 
   /* Instance Method */
@@ -111,8 +127,6 @@ class Dashboard extends Component {
     if (this.state.loading) {
       return <Loading />;
     }
-
-    console.log("DURING RENDER", this.state);
 
     return <main className={dashboardClasses}> {renderPanels} </main>;
   }
